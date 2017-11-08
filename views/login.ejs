@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>登录页面</title>
+    </head>
+    <style>
+        #loginPage{
+           margin: 0 auto;
+           position: absolute;
+           left: 38%;
+           top: 10%;
+        }
+        .txt{
+          width: 242px;
+          height: 25px;
+          font-size: 16px;
+          padding: 1px 5px;
+          margin-top: 20px;
+        }
+        #submitBtn{
+          background-color: #337ab7;
+          border: none;
+          color: white;
+          padding: 6px 111px;
+          font-size: 17px;
+          margin-top: 18px;
+          cursor: pointer;
+        }
+        #submitBtn:hover{
+          background-color: #1480dc;
+        }
+        #errMsg{
+          margin-left: 115px;
+          color: red;
+        }
+        a{
+          text-decoration: none;
+        }
+    </style>
+  <body>
+    <div id="loginPage">
+          <h1>欢迎来到购物商城</h1>
+          <div id="errMsg">
+             <span id="errMsgSpan" style="position: relative;right: 0px;opacity : 0;">您输入的用户名有误</span>
+          </div>
+          <div id="userNameDiv">
+            <input class="txt" type="text" id="userNameTxt" placeholder="请您输入用户名"/>
+          </div>
+          <div id="passwordDiv">
+            <input class="txt" type="password" id="passwordTxt" placeholder="请您输入密码"/>
+          </div>
+          <div id="submitDiv">
+            <input type="button" id="submitBtn" value="登录"/>
+          </div>
+          <p><a href="/regist">注册</a>
+    </div>
+    <p style="display:none;"><%= result[0].Name%></p>
+  </body>
+  <script type="text/javascript" src="./public/jquery.js"></script>
+  <script>
+    $("#submitBtn").click(function(){
+          $.ajax({
+                url:'/login/isPassword',
+                type:'get',
+                data:{
+                    userName:$("#userNameTxt").val(),password:$("#passwordTxt").val()
+                },
+                dataType:'json',    
+                success:function(data){
+                   
+                   $("#errMsgSpan").text(data.msg);
+                   if(data.code != 0 ){
+                      $("#errMsgSpan").animate({
+                        right : "114px",
+                        opacity : 1
+                      },500);
+                      setTimeout(function(){
+                           $("#errMsgSpan").animate({
+                              right : "0px",
+                              opacity : 0
+                            },500);
+                      },4000);
+                   }else{
+                     window.location.href='./main';
+                   }
+                },
+                error:function(){}
+            })
+    });
+  </script>
+</html>
