@@ -1,13 +1,103 @@
 <!DOCTYPE html>
 <html>
-  <title>首页</title>
+  <head>首页</title>
     </head>
     <style>
+        #userName{
+                color: aqua;
+                font-size: 22px;
+        }
+        .contentHistory{
+                width: 300px;
+                height: 300px;
+                overflow: scroll;
+        }
+        li {list-style-type:none;}
+        #edit-box{
+            width: 220px;
+            height: 39px;
+            font-size: 24px;
+            padding-left: 8px;
+        }
+        #btn{
+            padding: 8px 11px;
+            font-size: 20px;
+            color: white;
+            background-color: #ff0101;
+            border: none;
+        }
     </style>
   <body>
-          <h1>商城首页</h1>
+          <h1 id="code">欢迎来到聊天系统</h1>
+          <p>欢迎<span id="userName"></span>进入聊天平台</p>
+          <div class="contentHistory">
+                <ul id="message-box"></ul>    
+          </div>  
+          <div id="box">  
+              <input id="edit-box" autocomplete="off" /><button id="btn">发送</button>  
+          </div>
+          <form id="frmUploader" enctype="multipart/form-data" action="api/Upload/" method="post">
+            <input type="file" name="imgUploader" multiple />
+            <input type="submit" name="submit" id="btnSubmit" value="Upload" />
+        </form> 
   </body>
   <script type="text/javascript" src="./public/jquery.js"></script>
+  <script type="text/javascript" src="./public/socket.io.js"></script>
   <script>
+    var socket = io("ws://192.168.2.38:5555");
+        var code = getCookie("userName");
+      code = code.substring(2,code.length);
+      code = eval("(" + code + ")");
+      var idFirstInter = true;
+      var message = {};
+      var length = 0;
+      message.content = "";
+      
+      message.userName =   code.userName;
+      socket.emit('message', message);  
+        document.getElementById('btn').onclick = function () {
+            message.content = document.getElementById('edit-box').value;
+            message.userName =   code.userName;
+            socket.emit('message', message);
+            document.getElementById('edit-box').value = '';  
+        };  
+
+        socket.on('message', function (message) {
+            if(idFirstInter){
+                    for(var i = 0 ; i < message.length ; i ++){
+                        var li = document.createElement('li'); 
+                        li.innerHTML = message[i].NAME + "："+ message[i].CONTENT;  
+                        document.getElementById('message-box').appendChild(li);
+                    }
+                    $('.contentHistory').scrollTop( $('.contentHistory')[0].scrollHeight );
+                    idFirstInter = false; 
+            }else{
+                        if(length == message.length){
+                            return ;
+                        }
+                        var li = document.createElement('li'); 
+                        li.innerHTML = message[message.length - 1].NAME + "：" + message[message.length - 1].CONTENT;  
+                        document.getElementById('message-box').appendChild(li);
+                        $('.contentHistory').scrollTop( $('.contentHistory')[0].scrollHeight );
+                        length = message.length;
+            }  
+            
+              
+        }); 
+
+      $("#edit-box").keydown(function(event){  
+          if(event.which == 13){
+              $("#btn").click();
+          }
+      });
+      function getCookie(name) {
+            var arr, reg = new RegExp("(^| )" + name + "=([^;]*)(;|$)");
+            if (arr = document.cookie.match(reg))
+              return unescape(arr[2]);
+            else
+              return null;
+         };
+      
+      $("#userName").text(code.userName);
   </script>
 </html>

@@ -8,25 +8,86 @@ var bodyParser = require('body-parser')
 var url = require('url')
 var engine = require('ejs-locals')
 var cookieParser = require('cookie-parser')
-var Cookies = require('cookies')
+var captchapng = require("captchapng")
+var multer = require("multer")
+var crypto = require("crypto")
+var Server = require('socket.io');
+ var io = new Server(5555);
 
 //require("jquery")
+var Storage = multer.diskStorage({
+    destination: function (req, file, callback) {
+        callback(null, "./Images");
+    },
+    filename: function (req, file, callback) {
+        callback(null, file.fieldname + "_" + Date.now() + "_" + file.originalname);
+    }
+});
+
+var upload = multer({ storage: Storage }).array("imgUploader", 3);
+
+router.post("/api/Upload", function (req, res) {
+    upload(req, res, function (err) {
+        if (err) {
+            return res.end("Something went wrong!");
+        }
+        return res.end("File uploaded sucessfully!.");
+    });
+});
 
 var app = express();
+var http = require('http').Server(app);  
+//var io = require('socket.io')(http);
+
+
+app.use(cookieParser());
 
 //app.set("views",__dirname+"/views");
 //cnpm i mysql express ejs jquery ejs-locals body-parser -S
-
+io.on('connection', function (socket) {  
+    console.log('a user connected');  
+    socket.on('disconnect', function () {  
+        console.log('user disconnected');  
+    });  
+    socket.on('message', function (message) {  
+        var chat = [];
+        console.log('message: ' + message.userName);
+        console.log('content: ' + message.content);
+        if(message.content == ""){
+            connection.query("SELECT * FROM T_CHAT",chat,function(err,result,fields){
+                    if(err){
+                        console.log("聊天内容插入失败");
+                    }else{
+                        io.emit('message', result);  
+                    }
+                }); 
+            return ;
+        }
+        chat.push(message.userName);
+        chat.push("18");
+        chat.push(message.content);
+        chat.push("");
+        connection.query("INSERT INTO T_CHAT (NAME,AGE,CONTENT,MOER) VALUES (?,?,?,?)",chat,function(err,result,fields){
+            if(err){
+                console.log("聊天内容插入失败");
+            }else{
+                //////////////////////////////
+                connection.query("SELECT * FROM T_CHAT",chat,function(err,result,fields){
+                    if(err){
+                        console.log("聊天内容插入失败");
+                    }else{
+                        io.emit('message', result);  
+                    }
+                }); 
+                ///////////////////////////////
+            }
+        });  
+        
+    });  
+});  
 
 app.use(function(req,res,next){
-    //app.use(cookieParser());
-    req.cookies = new Cookies(req,res);
-    console.log(req.headers.cookie);
-    if (req.headers.cookie){
-        console.log("存在cookie了");
-    }else{
-         console.log("不存在cookie了");
-    }
+    
     next();
 });
 
@@ -55,28 +116,74 @@ var connection = mysql.createConnection({
 connection.connect();
 
 router.get("/login",function(req,res,next){
+    
     connection.query('SELECT * FROM T_STUDENT',function(err,result,fields){
                 if(err){
                     console.log("查询失败");
                     return;
                 }else{
                     //res.send(result);
-                    res.render('login.ejs',{"result" : result});
+                    if(isLogin(req)){
+                        res.redirect("/main");
+                    }else{
+                        res.render('login.ejs',{"result" : result});
+                    }
                 }
             });
 });
-
-
+//显示验证码
+router.get("/captchapng",function(req,res,next){
+        var random = parseInt(Math.random() * 9000 + 1000);
+        res.cookie('random', {random : random}, { maxAge: 900000 }); 
+        var p = new captchapng(80, 30, random); // width,height,numeric captcha
+        p.color(0, 0, 0, 0);  // First color: background (red, green, blue, alpha)
+        p.color(80, 80, 80, 255); // Second color: paint (red, green, blue, alpha)
+        var img = p.getBase64();
+        var imgbase64 = new Buffer(img, 'base64');
+        res.writeHead(200, {
+            'Content-Type': 'image/png'
+        });
+        res.end(imgbase64);
+    
+});
 
 
 router.get("/main",function(req,res,next){
-    //return res.redirect("/login");
-    res.render("main.ejs");
+    if(isLogin(req)){
+        res.render("main.ejs");
+    }else{
+        res.redirect("/login?time=" + Date.now());
+    }
+    
 });
+
+function isLogin(req){
+        if(req.cookies["code"] != undefined){
+            return true;
+        }else{
+            return false;
+        }
+};
+
+function getCookie(name) {
+            var arr, reg = new RegExp("(^| )" + name + "=([^;]*)(;|$)");
+            if (arr = document.cookie.match(reg))
+              return unescape(arr[2]);
+            else
+              return null;
+         };
+
+
+
 
 router.get("/regist",function(req,res,next){
     //return res.redirect("/login");
-    res.render("regist.ejs");
+    if(isLogin(req)){
+        res.redirect("/main");
+    }else{
+        res.render("regist.ejs");
+    }
+    
 });
 //
 
@@ -99,10 +206,13 @@ app.get("/regist/insert",function(req,res,next){
 
 app.get("/login/isPassword",function(req,res,next){
      var backMsg = {"msg":"aaa","code":3};
-    var userName = [];
-    console.log(req.query);
+     var userName = [];
+     var content = req.query.password;
+     var md5 = crypto.createHash('md5');
+     md5.update(content);
+     var password = md5.digest('hex');
     if(req.query.userName == "" || req.query.password == ""){
-        backMsg.msg = "用户名或密码不能为空";
+        backMsg.msg = "用户名或密码不能空";
         res.send(backMsg);
         return;
     }else{
@@ -122,10 +232,10 @@ app.get("/login/isPassword",function(req,res,next){
                     }
                     if(passWord == req.query.password){
                         backMsg.msg = "恭喜登录成功";
-                        console.log("恭喜登录成功");
                         backMsg.code = 0;
-                        res.cookie('code', "12121212", { maxAge: 900000 });
-                        //res.cookie('code', backMsg.code, { maxAge: 900000 });
+                        //res.cookie("account", {account: userName, hash: hash, last: lastTime}, {maxAge: 60000});
+                        res.cookie('code', {code : backMsg.code}, { maxAge: 900000 });
+                        res.cookie('userName', {userName : req.query.userName}, { maxAge: 900000 });
                         res.send(backMsg);
                         return;
                     }else{
@@ -146,4 +256,4 @@ app.use('/', router);
 module.exports = router;
 
 //app.use(static("./www"));
-app.listen(4321);
+app.listen(4000);

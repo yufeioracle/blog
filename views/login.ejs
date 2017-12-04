@@ -17,6 +17,13 @@
           padding: 1px 5px;
           margin-top: 20px;
         }
+        .txtCode{
+          width: 142px;
+          height: 25px;
+          font-size: 16px;
+          padding: 1px 5px;
+          margin-top: 20px;
+        }
         #submitBtn{
           background-color: #337ab7;
           border: none;
@@ -36,10 +43,17 @@
         a{
           text-decoration: none;
         }
+        .captchapngImg{
+          position: absolute;
+          left: 68%;
+          bottom: 29%;
+          background-color: #e4d3d3;
+          cursor: pointer;
+        }
     </style>
   <body>
     <div id="loginPage">
-          <h1>欢迎来到购物商城</h1>
+          <h1>欢迎来到聊天系统</h1>
           <div id="errMsg">
              <span id="errMsgSpan" style="position: relative;right: 0px;opacity : 0;">您输入的用户名有误</span>
           </div>
@@ -49,6 +63,12 @@
           <div id="passwordDiv">
             <input class="txt" type="password" id="passwordTxt" placeholder="请您输入密码"/>
           </div>
+          <div id="captchapngDiv">
+            <input class="txtCode" type="text" id="captchapng" placeholder="请您验证码"/>
+          </div>
+          <div class="captchapngImg">
+              <img id="codeImg" src="http://192.168.2.38:4000/captchapng"/>
+          </div>
           <div id="submitDiv">
             <input type="button" id="submitBtn" value="登录"/>
           </div>
@@ -57,13 +77,49 @@
     <p style="display:none;"><%= result[0].Name%></p>
   </body>
   <script type="text/javascript" src="./public/jquery.js"></script>
+  <script type="text/javascript" src="./public/socket.io.js"></script>
   <script>
+    var socket = io("ws://192.168.2.38:5555");
+    $("#passwordTxt").keydown(function(event){  
+          if(event.which == 13){
+              $("#submitBtn").click();
+          }
+      });
+      $(".captchapngImg").click(function(){
+                $(".captchapngImg").html("");
+                  var src = "http://192.168.2.38:4000/captchapng?time=" + Date.now();
+                  var html = "<img id='codeImg' src="+src+"/>";
+                  $(".captchapngImg").html(html);
+      });
     $("#submitBtn").click(function(){
+          var random = getCookie("random");
+          random = random.substring(2,random.length);
+          random = eval("(" + random + ")");
+          if(random.random != $("#captchapng").val()){
+                  $(".captchapngImg").html("");
+                  var src = "http://192.168.2.38:4000/captchapng?time=" + Date.now();
+                  var html = "<img id='codeImg' src="+src+"/>";
+                  $(".captchapngImg").html(html);
+                  $("#errMsgSpan").text("您输入的验证码有误！");
+                   $("#errMsgSpan").animate({
+                        right : "114px",
+                        opacity : 1
+                      },500);
+                      
+                      setTimeout(function(){
+                           $("#errMsgSpan").animate({
+                              right : "0px",
+                              opacity : 0
+                            },500);
+                      },4000);
+          }
           $.ajax({
                 url:'/login/isPassword',
                 type:'get',
                 data:{
-                    userName:$("#userNameTxt").val(),password:$("#passwordTxt").val()
+                    userName:$("#userNameTxt").val(),
+                    password:$("#passwordTxt").val(),
+                    random :$("#captchapng").val()
                 },
                 dataType:'json',    
                 success:function(data){
@@ -87,5 +143,12 @@
                 error:function(){}
             })
     });
+    function getCookie(name) {
+            var arr, reg = new RegExp("(^| )" + name + "=([^;]*)(;|$)");
+            if (arr = document.cookie.match(reg))
+              return unescape(arr[2]);
+            else
+              return null;
+         };
   </script>
 </html>
